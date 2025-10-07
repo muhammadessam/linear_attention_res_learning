@@ -158,8 +158,9 @@ class ChannelQKAttention(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, in_features, hidden_features=None, out_features=None, neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None,
-                 dropout=0.2):
+    def __init__(
+        self, in_features, hidden_features=None, out_features=None, neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None, dropout=0.2
+    ):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -187,8 +188,17 @@ class MLP(nn.Module):
 
 
 class TokenSpikingTransformer(nn.Module):
-    def __init__(self, dim, num_heads, mlp_ratio=4.0, neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None, dropout=0.2,
-                 attention_type: str = "token"):
+    def __init__(
+        self,
+        dim,
+        num_heads,
+        mlp_ratio=4.0,
+        neuron_type="LIF",
+        surrogate_function="sigmoid",
+        neuron_args=None,
+        dropout=0.2,
+        attention_type: str = "token",
+    ):
         super().__init__()
         attn_type = (attention_type or "token").lower()
         if attn_type not in {"token", "channel"}:
@@ -197,8 +207,15 @@ class TokenSpikingTransformer(nn.Module):
             self.tssa = TokenQKAttention(dim, num_heads, neuron_type, surrogate_function, neuron_args, dropout)
         else:
             self.tssa = ChannelQKAttention(dim, num_heads, neuron_type, surrogate_function, neuron_args, dropout)
-        self.mlp = MLP(dim, int(dim * mlp_ratio), neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args,
-                       out_features=dim, dropout=dropout)
+        self.mlp = MLP(
+            dim,
+            int(dim * mlp_ratio),
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args,
+            out_features=dim,
+            dropout=dropout,
+        )
 
     def forward(self, x):
         x = x + self.tssa(x)
@@ -240,10 +257,23 @@ class PatchEmbeddingStage(nn.Module):
 
 
 class Stage12FeatureExtractorStageSelect(nn.Module):
-    def __init__(self, T: int = 4, in_channels: int = 1, num_classes: int = 10, embed_dims: Tuple[int, int] = (96, 192),
-                 num_heads=(8, 8), mlp_ratio: float = 4.0, depths=(1, 2), is_video: bool = True,
-                 neuron_type: str = "LIF", surrogate_function: str = "sigmoid", neuron_args: dict | None = None,
-                 dropout: float = 0.2, attention_type: str | None = None, apply_stages: int = 2) -> None:
+    def __init__(
+        self,
+        T: int = 4,
+        in_channels: int = 1,
+        num_classes: int = 10,
+        embed_dims: Tuple[int, int] = (96, 192),
+        num_heads=(8, 8),
+        mlp_ratio: float = 4.0,
+        depths=(1, 2),
+        is_video: bool = True,
+        neuron_type: str = "LIF",
+        surrogate_function: str = "sigmoid",
+        neuron_args: dict | None = None,
+        dropout: float = 0.2,
+        attention_type: str | None = None,
+        apply_stages: int = 2,
+    ) -> None:
         super().__init__()
         neuron_args = neuron_args or {}
         assert len(num_heads) == 2 and len(depths) == 2 and len(embed_dims) == 2
@@ -256,23 +286,43 @@ class Stage12FeatureExtractorStageSelect(nn.Module):
         self.apply_stages = apply_stages
         self.attention_type = ("token" if is_video else "channel") if attention_type is None else attention_type.lower()
 
-        self.patch_embed1 = PatchEmbedInit(in_channels=in_channels, embed_dims=dim_s1, neuron_type=neuron_type,
-                                           surrogate_function=surrogate_function, neuron_args=neuron_args)
-        self.stage1 = nn.ModuleList([
-            TokenSpikingTransformer(dim=dim_s1, num_heads=num_heads[0], mlp_ratio=mlp_ratio, neuron_type=neuron_type,
-                                    surrogate_function=surrogate_function, neuron_args=neuron_args, dropout=dropout,
-                                    attention_type=self.attention_type)
-            for _ in range(depths[0])
-        ])
+        self.patch_embed1 = PatchEmbedInit(
+            in_channels=in_channels, embed_dims=dim_s1, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args
+        )
+        self.stage1 = nn.ModuleList(
+            [
+                TokenSpikingTransformer(
+                    dim=dim_s1,
+                    num_heads=num_heads[0],
+                    mlp_ratio=mlp_ratio,
+                    neuron_type=neuron_type,
+                    surrogate_function=surrogate_function,
+                    neuron_args=neuron_args,
+                    dropout=dropout,
+                    attention_type=self.attention_type,
+                )
+                for _ in range(depths[0])
+            ]
+        )
 
-        self.patch_embed2 = PatchEmbeddingStage(in_channels=dim_s1, embed_dims=dim_s2, neuron_type=neuron_type,
-                                                surrogate_function=surrogate_function, neuron_args=neuron_args)
-        self.stage2 = nn.ModuleList([
-            TokenSpikingTransformer(dim=dim_s2, num_heads=num_heads[1], mlp_ratio=mlp_ratio, neuron_type=neuron_type,
-                                    surrogate_function=surrogate_function, neuron_args=neuron_args, dropout=dropout,
-                                    attention_type=self.attention_type)
-            for _ in range(depths[1])
-        ])
+        self.patch_embed2 = PatchEmbeddingStage(
+            in_channels=dim_s1, embed_dims=dim_s2, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args
+        )
+        self.stage2 = nn.ModuleList(
+            [
+                TokenSpikingTransformer(
+                    dim=dim_s2,
+                    num_heads=num_heads[1],
+                    mlp_ratio=mlp_ratio,
+                    neuron_type=neuron_type,
+                    surrogate_function=surrogate_function,
+                    neuron_args=neuron_args,
+                    dropout=dropout,
+                    attention_type=self.attention_type,
+                )
+                for _ in range(depths[1])
+            ]
+        )
 
         self.head_s1 = nn.Linear(dim_s1, num_classes) if num_classes > 0 else nn.Identity()
         self.head_s2 = nn.Linear(dim_s2, num_classes) if num_classes > 0 else nn.Identity()
@@ -306,7 +356,7 @@ class Stage12FeatureExtractorStageSelect(nn.Module):
 
 
 class AlignGrid2d(nn.Module):
-    def __init__(self, mode: str = 'avg', target_hw: Optional[Tuple[int, int]] = None):
+    def __init__(self, mode: str = "avg", target_hw: Optional[Tuple[int, int]] = None):
         super().__init__()
         assert mode in {"avg", "max", "interp"}
         self.mode = mode
@@ -326,28 +376,48 @@ class AlignGrid2d(nn.Module):
             Wt = self._gcd(Wa, Wv) or min(Wa, Wv)
         else:
             Ht, Wt = self.target_hw
-        if self.mode == 'avg':
+        if self.mode == "avg":
             a2 = F.adaptive_avg_pool2d(a.flatten(0, 1), (Ht, Wt)).reshape(Ta, Ba, Ca, Ht, Wt)
             v2 = F.adaptive_avg_pool2d(v.flatten(0, 1), (Ht, Wt)).reshape(Tv, Bv, Cv, Ht, Wt)
-        elif self.mode == 'max':
+        elif self.mode == "max":
             a2 = F.adaptive_max_pool2d(a.flatten(0, 1), (Ht, Wt)).reshape(Ta, Ba, Ca, Ht, Wt)
             v2 = F.adaptive_max_pool2d(v.flatten(0, 1), (Ht, Wt)).reshape(Tv, Bv, Cv, Ht, Wt)
         else:
-            a2 = F.interpolate(a.flatten(0, 1), size=(Ht, Wt), mode='bilinear', align_corners=False).reshape(Ta, Ba, Ca, Ht, Wt)
-            v2 = F.interpolate(v.flatten(0, 1), size=(Ht, Wt), mode='bilinear', align_corners=False).reshape(Tv, Bv, Cv, Ht, Wt)
+            a2 = F.interpolate(a.flatten(0, 1), size=(Ht, Wt), mode="bilinear", align_corners=False).reshape(Ta, Ba, Ca, Ht, Wt)
+            v2 = F.interpolate(v.flatten(0, 1), size=(Ht, Wt), mode="bilinear", align_corners=False).reshape(Tv, Bv, Cv, Ht, Wt)
         return a2, v2
 
 
 class QKFormerPatchAdapter(nn.Module):
-    def __init__(self, in_channels=1, embed_dims: Tuple[int, int] = (96, 192), T=4, apply_stages=2, add_rpe=True,
-                 attention_type: str = "token", neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None):
+    def __init__(
+        self,
+        in_channels=1,
+        embed_dims: Tuple[int, int] = (96, 192),
+        T=4,
+        apply_stages=2,
+        add_rpe=True,
+        attention_type: str = "token",
+        neuron_type="LIF",
+        surrogate_function="sigmoid",
+        neuron_args=None,
+    ):
         super().__init__()
         self.T = T
         self.apply_stages = apply_stages
         self.backbone = Stage12FeatureExtractorStageSelect(
-            T=T, in_channels=in_channels, num_classes=0, embed_dims=embed_dims, num_heads=(8, 8), depths=(1, 2),
-            is_video=True, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args or {},
-            dropout=0.2, attention_type=attention_type, apply_stages=apply_stages
+            T=T,
+            in_channels=in_channels,
+            num_classes=0,
+            embed_dims=embed_dims,
+            num_heads=(8, 8),
+            depths=(1, 2),
+            is_video=True,
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args or {},
+            dropout=0.2,
+            attention_type=attention_type,
+            apply_stages=apply_stages,
         )
         self.target_c = int(embed_dims[1])
         in_c = int(embed_dims[0]) if apply_stages == 1 else self.target_c
@@ -419,7 +489,7 @@ class SpatialAudioVisualSSA(nn.Module):
         q = q.reshape(T, B, N, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
         k = k.reshape(T, B, N, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
         v = v.reshape(T, B, N, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
-        attn = (q @ k.transpose(-2, -1))
+        attn = q @ k.transpose(-2, -1)
         x = (attn @ v) * self.scale
         x = x.transpose(3, 4).reshape(T, B, C, N)
         x = self.attn_lif(x.flatten(0, 1))
@@ -458,7 +528,7 @@ class TemporalAudioVisualSSA(nn.Module):
         q = q.reshape(N, B, T, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
         k = k.reshape(N, B, T, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
         v = v.reshape(N, B, T, self.num_heads, C // self.num_heads).permute(0, 1, 3, 2, 4)
-        attn = (q @ k.transpose(-2, -1))
+        attn = q @ k.transpose(-2, -1)
         x = (attn @ v) * self.scale
         x = x.reshape(N, B, T, C).permute(2, 1, 3, 0)
         x = self.attn_lif(x.flatten(0, 1))
@@ -469,10 +539,12 @@ class TemporalAudioVisualSSA(nn.Module):
 class SpatialTemporalAudioVisualSSA(nn.Module):
     def __init__(self, dim, step=10, num_heads=16, neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None):
         super().__init__()
-        self.spatial_attn = SpatialAudioVisualSSA(dim, step=step, num_heads=num_heads, neuron_type=neuron_type,
-                                                  surrogate_function=surrogate_function, neuron_args=neuron_args)
-        self.temporal_attn = TemporalAudioVisualSSA(dim, step=step, num_heads=num_heads, neuron_type=neuron_type,
-                                                   surrogate_function=surrogate_function, neuron_args=neuron_args)
+        self.spatial_attn = SpatialAudioVisualSSA(
+            dim, step=step, num_heads=num_heads, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args
+        )
+        self.temporal_attn = TemporalAudioVisualSSA(
+            dim, step=step, num_heads=num_heads, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args
+        )
 
     def forward(self, x, y):
         a = self.spatial_attn(x, y)
@@ -520,17 +592,26 @@ class TokenMLP1D(nn.Module):
 
 
 class AudioVisualBlock(nn.Module):
-    def __init__(self, dim: int, num_heads: int, step: int = 10, mlp_ratio: float = 4.0, alpha: float = 0.5,
-                 neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None):
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int,
+        step: int = 10,
+        mlp_ratio: float = 4.0,
+        alpha: float = 0.5,
+        neuron_type="LIF",
+        surrogate_function="sigmoid",
+        neuron_args=None,
+    ):
         super().__init__()
         self.alpha = alpha
         self.norm_x = TokenChannelLayerNorm(dim)
         self.norm_y = TokenChannelLayerNorm(dim)
-        self.attn = SpatialTemporalAudioVisualSSA(dim, step=step, num_heads=num_heads, neuron_type=neuron_type,
-                                                  surrogate_function=surrogate_function, neuron_args=neuron_args)
+        self.attn = SpatialTemporalAudioVisualSSA(
+            dim, step=step, num_heads=num_heads, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args
+        )
         self.mlp_norm = TokenChannelLayerNorm(dim)
-        self.mlp = TokenMLP1D(dim, mlp_ratio=mlp_ratio, neuron_type=neuron_type,
-                              surrogate_function=surrogate_function, neuron_args=neuron_args)
+        self.mlp = TokenMLP1D(dim, mlp_ratio=mlp_ratio, neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor):
         st = self.attn(self.norm_x(x), self.norm_y(y))
@@ -545,29 +626,74 @@ class AudioVisualBlock(nn.Module):
 
 
 class SpikformerCCSSA_QKFusion_ST(nn.Module):
-    def __init__(self, num_classes=10, step=4, in_channels_audio=1, in_channels_video=1, embed_dims=192, num_heads=8,
-                 mlp_ratio=4.0, align_mode='avg', target_hw=None, apply_stages=2, add_rpe=True, alpha=0.5,
-                 neuron_type="LIF", surrogate_function="sigmoid", neuron_args=None):
+    def __init__(
+        self,
+        num_classes=10,
+        step=4,
+        in_channels_audio=1,
+        in_channels_video=1,
+        embed_dims=192,
+        num_heads=8,
+        mlp_ratio=4.0,
+        align_mode="avg",
+        target_hw=None,
+        apply_stages=2,
+        add_rpe=True,
+        alpha=0.5,
+        neuron_type="LIF",
+        surrogate_function="sigmoid",
+        neuron_args=None,
+    ):
         super().__init__()
         self.T = step
         s1_dim = max(embed_dims // 2, 1)
-        self.enc_a = QKFormerPatchAdapter(in_channels=in_channels_audio, embed_dims=(s1_dim, embed_dims), T=step,
-                                          apply_stages=apply_stages, add_rpe=add_rpe, attention_type="channel",
-                                          neuron_type=neuron_type, surrogate_function=surrogate_function,
-                                          neuron_args=neuron_args or {})
-        self.enc_v = QKFormerPatchAdapter(in_channels=in_channels_video, embed_dims=(s1_dim, embed_dims), T=step,
-                                          apply_stages=apply_stages, add_rpe=add_rpe, attention_type="token",
-                                          neuron_type=neuron_type, surrogate_function=surrogate_function,
-                                          neuron_args=neuron_args or {})
+        self.enc_a = QKFormerPatchAdapter(
+            in_channels=in_channels_audio,
+            embed_dims=(s1_dim, embed_dims),
+            T=step,
+            apply_stages=apply_stages,
+            add_rpe=add_rpe,
+            attention_type="channel",
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args or {},
+        )
+        self.enc_v = QKFormerPatchAdapter(
+            in_channels=in_channels_video,
+            embed_dims=(s1_dim, embed_dims),
+            T=step,
+            apply_stages=apply_stages,
+            add_rpe=add_rpe,
+            attention_type="token",
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args or {},
+        )
         self.align = AlignGrid2d(mode=align_mode, target_hw=target_hw)
 
         # Two directional blocks: audio<-video and video<-audio
-        self.block_av = AudioVisualBlock(dim=embed_dims, num_heads=num_heads, step=step, mlp_ratio=mlp_ratio, alpha=alpha,
-                                         neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args or {})
-        self.block_va = AudioVisualBlock(dim=embed_dims, num_heads=num_heads, step=step, mlp_ratio=mlp_ratio, alpha=alpha,
-                                         neuron_type=neuron_type, surrogate_function=surrogate_function, neuron_args=neuron_args or {})
+        self.block_av = AudioVisualBlock(
+            dim=embed_dims,
+            num_heads=num_heads,
+            step=step,
+            mlp_ratio=mlp_ratio,
+            alpha=alpha,
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args or {},
+        )
+        self.block_va = AudioVisualBlock(
+            dim=embed_dims,
+            num_heads=num_heads,
+            step=step,
+            mlp_ratio=mlp_ratio,
+            alpha=alpha,
+            neuron_type=neuron_type,
+            surrogate_function=surrogate_function,
+            neuron_args=neuron_args or {},
+        )
 
-        self.head = nn.Linear(embed_dims*2, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = nn.Linear(embed_dims * 2, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward(self, xa: torch.Tensor, xv: torch.Tensor):
         if xa.dim() == 4:
