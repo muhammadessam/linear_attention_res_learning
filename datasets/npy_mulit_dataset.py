@@ -3,6 +3,7 @@ import numpy as np
 import os
 import torch
 from typing import Tuple
+from torch.utils.data import DataLoader
 
 
 class NPYDataset(Dataset):
@@ -52,3 +53,23 @@ class NPYDataset(Dataset):
         y = torch.tensor(y, dtype=torch.long)
 
         return a, v, y
+
+def create_data_transforms(args):
+    # Placeholder for actual transformations
+    audio_transform = None
+    video_transform = None
+    return audio_transform, video_transform
+
+def create_data_loaders(data_root: str, args):
+    
+    audio_transform, video_transform = create_data_transforms(args)
+
+    train_dataset = NPYDataset(root=data_root, split="train", video_transform=video_transform, audio_transform=audio_transform)
+    val_dataset = NPYDataset(root=data_root, split="val")
+    test_dataset = NPYDataset(root=data_root, split="test")
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+
+    return train_loader, val_loader, test_loader
