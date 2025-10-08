@@ -148,7 +148,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--num_heads", type=int, default=8)
     parser.add_argument("--mlp_ratio", type=float, default=4.0)
     parser.add_argument("--alpha", type=float, default=1.0)
-    parser.add_argument("--bn_recal_batches", type=int, default=32, help="BN recalibration batches from train set before validation")
+    parser.add_argument("--bn_recal_batches", type=int, default=10, help="BN recalibration batches from train set before validation")
     parser.add_argument("--plot_every", type=int, default=10, help="Save plots every N epochs")
     parser.add_argument("--time-step", type=int, default=4, help="Number of time steps")
     parser.add_argument("--num-classes", type=int, default=6, help="Number of classes for the dataset")
